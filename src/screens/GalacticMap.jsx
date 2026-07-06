@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useStore, levelFromXp, XP_PER_LEVEL } from "../state/store.jsx";
-import { bandsFor, questUnlocked } from "../data/quest.js";
+import { QUESTS, bandsFor, questUnlocked } from "../data/quest.js";
 import { spotsWhere, spotById } from "../data/spots.js";
 import { THEMES } from "../theme/cosmic.js";
 import { MISSIONS, missionState, claimableCount } from "../data/missions.js";
@@ -85,23 +85,32 @@ export default function GalacticMap() {
     dispatch({ type: "START_NEXT" });
   };
 
+  // ── Contexte du bouton CONTINUER (reprend la quête courante) ──
+  const contQuest = QUESTS[state.quest];
+  const contProg = state.progressions[state.quest];
+  const contBands = bandsFor(state.quest);
+  const contBi = Math.min(contProg.bandIdx, contBands.length - 1);
+  const contBand = contBands[contBi];
+  const contK = Math.min(contProg.clearedInBand, contBand.clears - 1);
+  const contSpot = contBand.spotIds ? spotById[contBand.spotIds[contK]] : null;
+  const contTheme = contQuest.sector === "spin" ? THEMES.aube : contBi > 0 ? THEMES.confins : THEMES.nebula;
+  const contDetail = contSpot
+    ? `${contQuest.label} · ${contBand.label} · tapis ${contSpot.stackBB}bb${contSpot.vs ? ` vs ${contSpot.vs}` : ""}`
+    : `MTT · ${contBand.label} · niveau ${Math.min(contProg.clearedInBand + 1, contBand.clears)}/${contBand.clears}`;
+
   // ── Rendu d'une voie / secteur ──────────────────────────────
   const renderCard = ({ quest, bi = 0, theme, title, stack, icon, compact, locked, lockHint }) => {
     const prog = state.progressions[quest];
     const band = bandsFor(quest)[bi];
 
-    // Voie VERROUILLÉE : en-tête grisé + message de déblocage (pas de nœuds).
+    // Voie VERROUILLÉE : une ligne compacte (moins de bruit visuel que
+    // les cartes pleines — l'attention reste sur ce qui est jouable).
     if (locked) {
       return (
-        <div key={`${quest}-locked`} style={{ ...S.sector, ...(compact ? S.laneCard : {}), borderColor: "#1b1e2b", opacity: 0.75 }}>
-          <div style={S.sectorHead}>
-            {icon && <span style={{ ...S.sectorIcon, filter: "grayscale(1)", opacity: 0.5 }}>{icon}</span>}
-            <div>
-              <div style={{ ...S.sectorTitle, color: "#6b7088" }}>{title}</div>
-              <div style={S.sectorStack}>{stack}</div>
-            </div>
-          </div>
-          <div style={S.lockedBody}><span style={{ fontSize: 15 }}>🔒</span> {lockHint}</div>
+        <div key={`${quest}-locked`} style={S.lockedRow}>
+          {icon && <span style={{ filter: "grayscale(1)", opacity: 0.5, display: "inline-flex" }}>{icon}</span>}
+          <span style={S.lockedTitle}>{title}</span>
+          <span style={S.lockedHint}>🔒 {lockHint}</span>
         </div>
       );
     }
@@ -230,35 +239,27 @@ export default function GalacticMap() {
         <div style={S.levelBadge}>{level}</div>
       </div>
 
-      {/* ── Ligne de quête ── */}
-      <div style={S.questLine}>
-        <span style={S.questStar}>✦</span>
-        <div>
-          <div style={S.questKicker}>TA QUÊTE</div>
-          <div style={S.questText}>Maîtriser le poker, du tapis le plus court au plus profond.</div>
-        </div>
-      </div>
-
-      {/* ── SPIN & GO — module phare : partie jouable + coach ── */}
-      <button style={S.spinFeature} onClick={() => dispatch({ type: "GO", screen: "spintable" })}>
-        <span style={S.spinIcon}>🃏</span>
-        <span style={S.spinText}>
-          <b style={S.spinName}>SPIN &amp; GO</b>
-          <span style={S.spinSub}>Vraie partie 3-max · coach en direct + profils</span>
+      {/* ── CONTINUER — reprend la quête exactement où elle en est ── */}
+      <button
+        style={{ ...S.contBtn, borderColor: `${contTheme.frame}88`, boxShadow: `0 0 22px -8px ${contTheme.glow}` }}
+        onClick={() => playNode(state.quest)}
+      >
+        <span style={{ ...S.contRocket, filter: `drop-shadow(0 0 8px ${contTheme.glow})` }}>🚀</span>
+        <span style={S.contText}>
+          <span style={S.contKicker}>TA QUÊTE</span>
+          <b style={S.contName}>Continuer</b>
+          <span style={{ ...S.contDetail, color: contTheme.accentText }}>{contDetail}</span>
         </span>
-        <span style={S.spinGo}>JOUER →</span>
+        <span style={{ ...S.contGo, background: contTheme.accent }}>▶</span>
       </button>
 
-      {/* ── Modes roguelite ── */}
-      <div style={S.modesRow}>
-        <button style={S.modeCard} onClick={() => dispatch({ type: "GO", screen: "run" })}>
-          <span style={S.modeIcon}>🎰</span>
-          <span style={S.modeText}><b style={S.modeName}>RUN</b><span style={S.modeSub}>Survie 3-max</span></span>
-        </button>
-        <button style={{ ...S.modeCard, ...S.modeCardAlt }} onClick={() => dispatch({ type: "GO", screen: "gridrun" })}>
-          <span style={S.modeIcon}>♟️</span>
-          <span style={S.modeText}><b style={S.modeName}>DÉFI</b><span style={S.modeSub}>Grille roguelite</span></span>
-        </button>
+      {/* ══ SECTION QUÊTE : tous les secteurs d'apprentissage ══ */}
+      <div style={S.sectionHead}>
+        <span style={{ ...S.sectionIcon, color: "#f5a83a" }}>✦</span>
+        <div>
+          <div style={S.sectionTitle}>LA QUÊTE</div>
+          <div style={S.sectionSub}>Apprends les ranges, secteur par secteur.</div>
+        </div>
       </div>
 
       {/* ── SECTEUR SPIN : 3 voies par position ── */}
@@ -288,6 +289,38 @@ export default function GalacticMap() {
       {/* ── SECTEURS MTT / CASH ── */}
       <div style={{ ...S.sky, marginTop: 16 }}>
         {MTT_SECTORS.map((sec) => renderCard(sec))}
+      </div>
+
+      {/* ══ SECTION ARCADE : les jeux hors quête (gabarit commun) ══ */}
+      <div style={{ ...S.sectionHead, marginTop: 26 }}>
+        <span style={S.sectionIcon}>🕹️</span>
+        <div>
+          <div style={S.sectionTitle}>SALLE D'ARCADE</div>
+          <div style={S.sectionSub}>Teste-toi en partie — gagne gems &amp; jetons.</div>
+        </div>
+      </div>
+
+      <button style={S.spinFeature} onClick={() => dispatch({ type: "GO", screen: "spintable" })}>
+        <span style={S.spinIcon}>🃏</span>
+        <span style={S.spinText}>
+          <b style={S.spinName}>SPIN &amp; GO</b>
+          <span style={S.spinSub}>Vraie partie 3-max · le coach juge chaque décision</span>
+        </span>
+        <span style={{ ...S.rewardTag, color: "#7ee2b8", borderColor: "#2f9e6b" }}>🧠 COACH</span>
+        <span style={S.spinGo}>JOUER →</span>
+      </button>
+
+      <div style={S.modesRow}>
+        <button style={S.modeCard} onClick={() => dispatch({ type: "GO", screen: "run" })}>
+          <span style={S.modeIcon}>🎰</span>
+          <span style={S.modeText}><b style={S.modeName}>RUN</b><span style={S.modeSub}>Survie push/fold</span></span>
+          <span style={{ ...S.rewardTag, color: "#67e8f9", borderColor: "#2c5a6a" }}>💎</span>
+        </button>
+        <button style={{ ...S.modeCard, ...S.modeCardAlt }} onClick={() => dispatch({ type: "GO", screen: "gridrun" })}>
+          <span style={S.modeIcon}>♟️</span>
+          <span style={S.modeText}><b style={S.modeName}>DÉFI</b><span style={S.modeSub}>Roguelite sur grille</span></span>
+          <span style={{ ...S.rewardTag, color: "#67e8f9", borderColor: "#2c5a6a" }}>💎</span>
+        </button>
       </div>
 
       {/* ── Feuilles ── */}
@@ -441,10 +474,41 @@ const S = {
   xpNums: { fontSize: 9.5, color: "#6b7088", fontVariantNumeric: "tabular-nums" },
   levelBadge: { width: 34, height: 34, flexShrink: 0, borderRadius: "50%", background: "#12141d", border: "1px solid #3b82f6", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: display, fontWeight: 800, fontSize: 15, color: "#bcd6ff" },
 
-  questLine: { display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 16, padding: "0 4px" },
-  questStar: { color: "#f5a83a", fontSize: 16, marginTop: 2 },
-  questKicker: { fontSize: 9, letterSpacing: 2, color: "#5b6075", fontWeight: 700 },
-  questText: { fontSize: 12, color: "#b5bacb", lineHeight: 1.4, marginTop: 2 },
+  // ── Bouton CONTINUER (héros) ──
+  contBtn: {
+    display: "flex", alignItems: "center", gap: 12, width: "100%", cursor: "pointer", textAlign: "left",
+    background: "linear-gradient(135deg,#141021,#0b0d15)", borderWidth: 1.5, borderStyle: "solid",
+    borderRadius: 16, padding: "13px 14px", marginBottom: 22, fontFamily: mono, color: "#e7e9f0",
+  },
+  contRocket: { fontSize: 26, lineHeight: 1, flexShrink: 0 },
+  contText: { display: "flex", flexDirection: "column", gap: 1, flex: 1, minWidth: 0 },
+  contKicker: { fontSize: 8.5, letterSpacing: 2.5, color: "#5b6075", fontWeight: 700 },
+  contName: { fontFamily: display, fontSize: 18, fontWeight: 800, letterSpacing: 0.4 },
+  contDetail: { fontSize: 10.5, fontVariantNumeric: "tabular-nums" },
+  contGo: {
+    flexShrink: 0, width: 34, height: 34, borderRadius: "50%", color: "#0a0b10",
+    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800,
+  },
+
+  // ── En-têtes de section (Quête / Arcade) ──
+  sectionHead: { display: "flex", alignItems: "center", gap: 10, marginLeft: 2, marginRight: 2, marginBottom: 12, paddingBottom: 8, borderBottom: "1px solid #1b1e2b" },
+  sectionIcon: { fontSize: 17, lineHeight: 1 },
+  sectionTitle: { fontFamily: display, fontSize: 14, fontWeight: 800, letterSpacing: 2, color: "#e7e9f0" },
+  sectionSub: { fontSize: 9.5, color: "#6b7088", marginTop: 1 },
+
+  // Tag de gain sur les cartes arcade
+  rewardTag: {
+    flexShrink: 0, fontSize: 9, fontWeight: 800, letterSpacing: 0.5, fontFamily: mono,
+    borderWidth: 1, borderStyle: "solid", borderRadius: 99, padding: "3px 7px", whiteSpace: "nowrap",
+  },
+
+  // Voie verrouillée compacte
+  lockedRow: {
+    display: "flex", alignItems: "center", gap: 9, padding: "9px 13px",
+    background: "#0b0d13", border: "1px solid #171a26", borderRadius: 12,
+  },
+  lockedTitle: { fontFamily: display, fontSize: 12, fontWeight: 800, color: "#5b6075", letterSpacing: 1 },
+  lockedHint: { marginLeft: "auto", fontSize: 10, color: "#4d5266", letterSpacing: 0.3 },
 
   // ── Cartes de mode roguelite ──
   modesRow: { display: "flex", gap: 10, marginBottom: 18 },
@@ -455,7 +519,7 @@ const S = {
   },
   modeCardAlt: { background: "linear-gradient(135deg,#1d1230,#0c0e16)", border: "1px solid #4a2f6a" },
   modeIcon: { fontSize: 22, lineHeight: 1, flexShrink: 0 },
-  modeText: { display: "flex", flexDirection: "column", gap: 1, minWidth: 0 },
+  modeText: { display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 },
   modeName: { fontFamily: display, fontSize: 15, fontWeight: 800, letterSpacing: 0.5 },
   modeSub: { fontSize: 10, color: "#8b90a4" },
 
@@ -480,7 +544,6 @@ const S = {
   sky: { display: "flex", flexDirection: "column", gap: 12 },
   sector: { position: "relative", borderRadius: 18, borderWidth: 1, borderStyle: "solid", borderColor: "#1b1e2b", padding: "12px 10px 6px", background: "linear-gradient(180deg,#0b0d15,#080a11)", overflow: "hidden" },
   laneCard: { padding: "10px 10px 4px" },
-  lockedBody: { position: "relative", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "18px 8px 14px", fontSize: 11.5, color: "#6b7088", letterSpacing: 0.5 },
   nebula: { position: "absolute", inset: 0, pointerEvents: "none" },
   sectorHead: { position: "relative", display: "flex", alignItems: "center", gap: 10, marginBottom: 4, padding: "0 4px" },
   sectorIcon: { fontSize: 18, borderRadius: "50%" },
