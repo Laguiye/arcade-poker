@@ -85,6 +85,11 @@ export default function GalacticMap() {
     dispatch({ type: "START_NEXT" });
   };
 
+  // ── Volets dépliables (état persisté dans les prefs) ─────────
+  const questOpen = state.prefs.mapQuestOpen !== false;
+  const arcadeOpen = state.prefs.mapArcadeOpen !== false;
+  const toggle = (key, open) => dispatch({ type: "SET_PREF", key, value: !open });
+
   // ── Contexte du bouton CONTINUER (reprend la quête courante) ──
   const contQuest = QUESTS[state.quest];
   const contProg = state.progressions[state.quest];
@@ -253,74 +258,84 @@ export default function GalacticMap() {
         <span style={{ ...S.contGo, background: contTheme.accent }}>▶</span>
       </button>
 
-      {/* ══ SECTION QUÊTE : tous les secteurs d'apprentissage ══ */}
-      <div style={S.sectionHead}>
+      {/* ══ SECTION QUÊTE (volet dépliable) ══ */}
+      <button style={S.sectionHead} onClick={() => toggle("mapQuestOpen", questOpen)}>
         <span style={{ ...S.sectionIcon, color: "#f5a83a" }}>✦</span>
-        <div>
+        <div style={{ textAlign: "left" }}>
           <div style={S.sectionTitle}>LA QUÊTE</div>
           <div style={S.sectionSub}>Apprends les ranges, secteur par secteur.</div>
         </div>
-      </div>
+        <span style={{ ...S.chev, transform: questOpen ? "rotate(0deg)" : "rotate(-90deg)" }}>▾</span>
+      </button>
 
-      {/* ── SECTEUR SPIN : 3 voies par position ── */}
-      <div style={S.groupHead}>
-        <span style={{ ...S.groupIcon, boxShadow: `0 0 16px -2px ${THEMES.aube.glow}` }}>☀️</span>
-        <div>
-          <div style={{ ...S.groupTitle, color: THEMES.aube.accentText }}>SECTEUR SPIN</div>
-          <div style={S.groupSub}>SHORT STACK · 3-max · 3 positions</div>
+      <div style={{ ...S.fold, gridTemplateRows: questOpen ? "1fr" : "0fr" }}>
+        <div style={S.foldInner}>
+          {/* ── SECTEUR SPIN : 3 voies par position ── */}
+          <div style={S.groupHead}>
+            <span style={{ ...S.groupIcon, boxShadow: `0 0 16px -2px ${THEMES.aube.glow}` }}>☀️</span>
+            <div>
+              <div style={{ ...S.groupTitle, color: THEMES.aube.accentText }}>SECTEUR SPIN</div>
+              <div style={S.groupSub}>SHORT STACK · 3-max · 3 positions</div>
+            </div>
+          </div>
+          <div style={S.sky}>
+            {SPIN_LANES.map((lane) => {
+              const unlocked = questUnlocked(state, lane.quest);
+              const prog = state.progressions[lane.quest];
+              const bi = prog.bandIdx; // échelle courante (6→8→10)
+              const band = bandsFor(lane.quest)[bi];
+              return renderCard({
+                quest: lane.quest, bi, theme: THEMES.aube, compact: true,
+                title: lane.title,
+                stack: unlocked ? `ÉCHELLE ${band.echelle} · ${lane.action}` : lane.action,
+                icon: <span style={{ ...S.posDot, background: lane.dot }} />,
+                locked: !unlocked, lockHint: lane.lockHint,
+              });
+            })}
+          </div>
+
+          {/* ── SECTEURS MTT / CASH ── */}
+          <div style={{ ...S.sky, marginTop: 16 }}>
+            {MTT_SECTORS.map((sec) => renderCard(sec))}
+          </div>
         </div>
       </div>
-      <div style={S.sky}>
-        {SPIN_LANES.map((lane) => {
-          const unlocked = questUnlocked(state, lane.quest);
-          const prog = state.progressions[lane.quest];
-          const bi = prog.bandIdx; // échelle courante (6→8→10)
-          const band = bandsFor(lane.quest)[bi];
-          return renderCard({
-            quest: lane.quest, bi, theme: THEMES.aube, compact: true,
-            title: lane.title,
-            stack: unlocked ? `ÉCHELLE ${band.echelle} · ${lane.action}` : lane.action,
-            icon: <span style={{ ...S.posDot, background: lane.dot }} />,
-            locked: !unlocked, lockHint: lane.lockHint,
-          });
-        })}
-      </div>
 
-      {/* ── SECTEURS MTT / CASH ── */}
-      <div style={{ ...S.sky, marginTop: 16 }}>
-        {MTT_SECTORS.map((sec) => renderCard(sec))}
-      </div>
-
-      {/* ══ SECTION ARCADE : les jeux hors quête (gabarit commun) ══ */}
-      <div style={{ ...S.sectionHead, marginTop: 26 }}>
+      {/* ══ SECTION ARCADE (volet dépliable) ══ */}
+      <button style={{ ...S.sectionHead, marginTop: questOpen ? 26 : 10 }} onClick={() => toggle("mapArcadeOpen", arcadeOpen)}>
         <span style={S.sectionIcon}>🕹️</span>
-        <div>
+        <div style={{ textAlign: "left" }}>
           <div style={S.sectionTitle}>SALLE D'ARCADE</div>
           <div style={S.sectionSub}>Teste-toi en partie — gagne gems &amp; jetons.</div>
         </div>
-      </div>
-
-      <button style={S.spinFeature} onClick={() => dispatch({ type: "GO", screen: "spintable" })}>
-        <span style={S.spinIcon}>🃏</span>
-        <span style={S.spinText}>
-          <b style={S.spinName}>SPIN &amp; GO</b>
-          <span style={S.spinSub}>Vraie partie 3-max · le coach juge chaque décision</span>
-        </span>
-        <span style={{ ...S.rewardTag, color: "#7ee2b8", borderColor: "#2f9e6b" }}>🧠 COACH</span>
-        <span style={S.spinGo}>JOUER →</span>
+        <span style={{ ...S.chev, transform: arcadeOpen ? "rotate(0deg)" : "rotate(-90deg)" }}>▾</span>
       </button>
 
-      <div style={S.modesRow}>
-        <button style={S.modeCard} onClick={() => dispatch({ type: "GO", screen: "run" })}>
-          <span style={S.modeIcon}>🎰</span>
-          <span style={S.modeText}><b style={S.modeName}>RUN</b><span style={S.modeSub}>Survie push/fold</span></span>
-          <span style={{ ...S.rewardTag, color: "#67e8f9", borderColor: "#2c5a6a" }}>💎</span>
-        </button>
-        <button style={{ ...S.modeCard, ...S.modeCardAlt }} onClick={() => dispatch({ type: "GO", screen: "gridrun" })}>
-          <span style={S.modeIcon}>♟️</span>
-          <span style={S.modeText}><b style={S.modeName}>DÉFI</b><span style={S.modeSub}>Roguelite sur grille</span></span>
-          <span style={{ ...S.rewardTag, color: "#67e8f9", borderColor: "#2c5a6a" }}>💎</span>
-        </button>
+      <div style={{ ...S.fold, gridTemplateRows: arcadeOpen ? "1fr" : "0fr" }}>
+        <div style={S.foldInner}>
+          <button style={S.spinFeature} onClick={() => dispatch({ type: "GO", screen: "spintable" })}>
+            <span style={S.spinIcon}>🃏</span>
+            <span style={S.spinText}>
+              <b style={S.spinName}>SPIN &amp; GO</b>
+              <span style={S.spinSub}>Vraie partie 3-max · le coach juge chaque décision</span>
+            </span>
+            <span style={{ ...S.rewardTag, color: "#7ee2b8", borderColor: "#2f9e6b" }}>🧠 COACH</span>
+            <span style={S.spinGo}>JOUER →</span>
+          </button>
+
+          <div style={S.modesRow}>
+            <button style={S.modeCard} onClick={() => dispatch({ type: "GO", screen: "run" })}>
+              <span style={S.modeIcon}>🎰</span>
+              <span style={S.modeText}><b style={S.modeName}>RUN</b><span style={S.modeSub}>Survie push/fold</span></span>
+              <span style={{ ...S.rewardTag, color: "#67e8f9", borderColor: "#2c5a6a" }}>💎</span>
+            </button>
+            <button style={{ ...S.modeCard, ...S.modeCardAlt }} onClick={() => dispatch({ type: "GO", screen: "gridrun" })}>
+              <span style={S.modeIcon}>♟️</span>
+              <span style={S.modeText}><b style={S.modeName}>DÉFI</b><span style={S.modeSub}>Roguelite sur grille</span></span>
+              <span style={{ ...S.rewardTag, color: "#67e8f9", borderColor: "#2c5a6a" }}>💎</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* ── Feuilles ── */}
@@ -490,11 +505,20 @@ const S = {
     display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800,
   },
 
-  // ── En-têtes de section (Quête / Arcade) ──
-  sectionHead: { display: "flex", alignItems: "center", gap: 10, marginLeft: 2, marginRight: 2, marginBottom: 12, paddingBottom: 8, borderBottom: "1px solid #1b1e2b" },
+  // ── En-têtes de section (Quête / Arcade) — boutons de volet ──
+  sectionHead: {
+    display: "flex", alignItems: "center", gap: 10, width: "100%", cursor: "pointer",
+    background: "transparent", fontFamily: mono, color: "#e7e9f0", padding: "0 2px 8px",
+    marginBottom: 12, borderWidth: "0 0 1px", borderStyle: "solid", borderColor: "#1b1e2b",
+  },
   sectionIcon: { fontSize: 17, lineHeight: 1 },
   sectionTitle: { fontFamily: display, fontSize: 14, fontWeight: 800, letterSpacing: 2, color: "#e7e9f0" },
   sectionSub: { fontSize: 9.5, color: "#6b7088", marginTop: 1 },
+  chev: { marginLeft: "auto", color: "#6b7088", fontSize: 13, lineHeight: 1, transition: "transform .25s ease" },
+
+  // Volet dépliable (grid 1fr/0fr = repli animé sans hauteur codée en dur)
+  fold: { display: "grid", transition: "grid-template-rows .32s ease" },
+  foldInner: { overflow: "hidden", minHeight: 0 },
 
   // Tag de gain sur les cartes arcade
   rewardTag: {
