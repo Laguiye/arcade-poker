@@ -1,5 +1,6 @@
 import React from "react";
 import { StoreProvider, useStore } from "./state/store.jsx";
+import { Boot, Intro, ONBOARD_CSS } from "./screens/Onboarding.jsx";
 import AvatarSelect from "./screens/AvatarSelect.jsx";
 import GalacticMap, { GALMAP_CSS } from "./screens/GalacticMap.jsx";
 import Level from "./screens/Level.jsx";
@@ -15,8 +16,9 @@ import { JUICE_CSS } from "./components/juice/index.jsx";
 // ─────────────────────────────────────────────────────────────
 // App.jsx — routeur d'écran (machine à états §1). Un seul état
 // `screen` global (store). Pas de react-router pour le MVP.
-//   Boot → Avatar → Carte → Niveau → Récompense → Carte
+//   Boot → Avatar → Intro (1re fois) → Carte → Niveau → Récompense
 //   Carte ⇄ Labo / Run (menu dev)
+// Boot/Intro (onboarding) : screens/Onboarding.jsx.
 // ─────────────────────────────────────────────────────────────
 
 const FONT = `@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500;700&display=swap');`;
@@ -24,7 +26,7 @@ const FONT = `@import url('https://fonts.googleapis.com/css2?family=Bricolage+Gr
 export default function App() {
   return (
     <StoreProvider>
-      <style>{FONT + GRID_CSS + UI_CSS + JUICE_CSS + GALMAP_CSS}</style>
+      <style>{FONT + GRID_CSS + UI_CSS + JUICE_CSS + GALMAP_CSS + ONBOARD_CSS}</style>
       <div style={page}>
         <Router />
       </div>
@@ -39,6 +41,8 @@ function Router() {
       return <Boot onStart={() => dispatch({ type: "GO", screen: "avatar" })} />;
     case "avatar":
       return <AvatarSelect />;
+    case "intro":
+      return <Intro />;
     case "map":
       return <GalacticMap />;
     case "level":
@@ -58,23 +62,11 @@ function Router() {
   }
 }
 
-// Boot splash → entre dans le parcours.
-function Boot({ onStart }) {
-  return (
-    <div style={boot.root}>
-      <div style={boot.mark}>♠</div>
-      <h1 style={boot.title}>ARCADE POKER</h1>
-      <p style={boot.tag}>Maîtrise les ranges. Du tapis le plus court au plus profond.</p>
-      <button style={boot.cta} onClick={onStart}>Commencer →</button>
-    </div>
-  );
-}
-
 // Run en tant qu'écran dev (hors parcours linéaire), avec retour carte.
 function RunScreen({ back }) {
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "16px 0 0" }}>
-      <button style={boot.back} onClick={back}>← Carte</button>
+      <button style={backBtn} onClick={back}>← Carte</button>
       <Run />
     </div>
   );
@@ -92,16 +84,5 @@ const page = {
   boxSizing: "border-box",
 };
 
-const display = "'Bricolage Grotesque', sans-serif";
 const mono = "'JetBrains Mono', monospace";
-const boot = {
-  root: { maxWidth: 440, margin: "0 auto", textAlign: "center", padding: "72px 22px", fontFamily: mono, color: "#e7e9f0" },
-  mark: { fontSize: 56, color: "#10b981", marginBottom: 8 },
-  title: { fontFamily: display, fontSize: 40, fontWeight: 800, letterSpacing: 1, margin: "0 0 10px" },
-  tag: { color: "#8b90a4", fontSize: 13, margin: "0 0 32px", lineHeight: 1.5 },
-  cta: {
-    background: "#e7e9f0", border: "none", color: "#0a0b10", padding: "14px 28px",
-    borderRadius: 11, fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: mono, letterSpacing: 0.5,
-  },
-  back: { background: "transparent", border: "none", color: "#6b7088", cursor: "pointer", fontFamily: mono, fontSize: 12, marginBottom: 10 },
-};
+const backBtn = { background: "transparent", border: "none", color: "#6b7088", cursor: "pointer", fontFamily: mono, fontSize: 12, marginBottom: 10 };

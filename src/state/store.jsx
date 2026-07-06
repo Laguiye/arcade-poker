@@ -56,7 +56,7 @@ function reducer(state, action) {
       return {
         ...state,
         player: { ...state.player, avatarId: action.avatarId, name: action.name || "" },
-        screen: "map",
+        screen: "intro", // 3 slides d'onboarding (une fois par save — les saves existantes reprennent sur "map")
       };
 
     case "SELECT_QUEST":
